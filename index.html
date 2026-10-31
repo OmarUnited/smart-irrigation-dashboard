@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Farm AI • Mission Control</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.15); opacity: 0.4; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+    .pulse-active { animation: pulse-ring 2s infinite ease-in-out; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased p-4 md:p-8">
+
+  <div class="max-w-7xl mx-auto space-y-6">
+
+    <!-- Top Navigation / Status Header -->
+    <header class="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl gap-4">
+      <div class="flex items-center gap-4">
+        <div class="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400">
+          <i data-lucide="sprout" class="w-8 h-8"></i>
+        </div>
+        <div>
+          <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+            Smart Farm AI
+            <span class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full">v1.2 Live</span>
+          </h1>
+          <p class="text-xs text-slate-400">Autonomous Micro-Irrigation & Telemetry Station</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-6">
+        <div class="text-right">
+          <div class="text-xs uppercase font-medium text-slate-400">Last Telemetry</div>
+          <div id="last-update" class="text-sm font-semibold text-slate-200">Connecting...</div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="status-dot" class="w-3.5 h-3.5 rounded-full bg-emerald-500 pulse-active"></span>
+          <span id="status-text" class="text-sm font-medium text-emerald-400">Online</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Key Metrics Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      
+      <!-- Soil Moisture -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+        <div class="flex justify-between items-start">
+          <div>
+            <p class="text-xs font-semibold uppercase text-slate-400">Soil Moisture</p>
+            <h3 id="card-moisture" class="text-3xl font-extrabold text-white mt-2">-- %</h3>
+            <p id="card-raw-adc" class="text-xs text-slate-500 mt-1">Raw ADC: ----</p>
+          </div>
+          <div class="p-3 bg-blue-500/10 text-blue-400 rounded-xl">
+            <i data-lucide="droplets" class="w-6 h-6"></i>
+          </div>
+        </div>
+        <div class="w-full bg-slate-800 h-2 rounded-full mt-4 overflow-hidden">
+          <div id="moisture-bar" class="bg-blue-500 h-full transition-all duration-500" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- Soil / Water Temperature -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
+        <div class="flex justify-between items-start">
+          <div>
+            <p class="text-xs font-semibold uppercase text-slate-400">Temperature</p>
+            <h3 id="card-temp" class="text-3xl font-extrabold text-white mt-2">--.- °C</h3>
+            <p id="card-temp-status" class="text-xs text-emerald-400 mt-1">Normal Evaporative State</p>
+          </div>
+          <div class="p-3 bg-amber-500/10 text-amber-400 rounded-xl">
+            <i data-lucide="thermometer" class="w-6 h-6"></i>
+          </div>
+        </div>
+        <div class="w-full bg-slate-800 h-2 rounded-full mt-4 overflow-hidden">
+          <div id="temp-bar" class="bg-amber-500 h-full transition-all duration-500" style="width: 0%"></div>
+        </div>
+      </div>
+
+      <!-- Pump Status HUD -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
+        <div class="flex justify-between items-start">
+          <div>
+            <p class="text-xs font-semibold uppercase text-slate-400">Pump Actuation</p>
+            <h3 id="card-pump" class="text-3xl font-extrabold text-slate-400 mt-2">STANDBY</h3>
+            <span id="card-trigger" class="inline-block mt-2 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-slate-800 text-slate-400">PERIODIC</span>
+          </div>
+          <div id="pump-icon-container" class="p-3 bg-slate-800 text-slate-400 rounded-xl transition-all">
+            <i data-lucide="power" class="w-6 h-6"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Inference Engine -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
+        <div class="flex justify-between items-start">
+          <div>
+            <p class="text-xs font-semibold uppercase text-slate-400">AI Decision</p>
+            <h3 id="card-ai-decision" class="text-3xl font-extrabold text-indigo-400 mt-2">--</h3>
+            <p id="card-confidence" class="text-xs text-slate-400 mt-1">Confidence: --%</p>
+          </div>
+          <div class="p-3 bg-indigo-500/10 text-indigo-400 rounded-xl">
+            <i data-lucide="brain-circuit" class="w-6 h-6"></i>
+          </div>
+        </div>
+        <div class="w-full bg-slate-800 h-2 rounded-full mt-4 overflow-hidden">
+          <div id="confidence-bar" class="bg-indigo-500 h-full transition-all duration-500" style="width: 0%"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Charts & Activity Feed -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <!-- Realtime Chart -->
+      <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg">
+        <div class="flex justify-between items-center mb-4">
+          <div>
+            <h3 class="font-bold text-slate-100 text-lg">Dynamic Environmental Telemetry</h3>
+            <p class="text-xs text-slate-400">Real-time soil moisture and thermal dynamics history</p>
+          </div>
+          <span class="text-xs bg-slate-800 text-slate-300 px-3 py-1 rounded-lg">Last 20 Samples</span>
+        </div>
+        <div class="h-72 w-full">
+          <canvas id="telemetryChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Live Event Stream -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg flex flex-col justify-between">
+        <div>
+          <h3 class="font-bold text-slate-100 text-lg mb-1">Live Event Feed</h3>
+          <p class="text-xs text-slate-400 mb-4">Chronological trigger records</p>
+          <div id="event-feed" class="space-y-3 max-h-64 overflow-y-auto pr-1">
+            <!-- Events injected dynamically -->
+          </div>
+        </div>
+
+        <div class="mt-4 pt-4 border-t border-slate-800/80 flex justify-between items-center text-xs text-slate-500">
+          <span>Backend: FastAPI on Render</span>
+          <span>Storage: Supabase</span>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    // -------------------------------------------------------------
+    // 1. Supabase Initialization
+    // -------------------------------------------------------------
+    const SUPABASE_URL = "https://znophlwtwpntupvurbtz.supabase.co";
+    // Replace with your actual anon public key
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpub3BobHd0d3BudHVwdnVyYnR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzODUzNzAsImV4cCI6MjEwODk2MTM3MH0.chTlj53KGcZIGdIrM7l62bsySdpDvPcPeA9ACChTnqk";
+
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // -------------------------------------------------------------
+    // 2. Chart.js Setup
+    // -------------------------------------------------------------
+    const ctx = document.getElementById('telemetryChart').getContext('2d');
+    const telemetryChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          {
+            label: 'Moisture (%)',
+            borderColor: '#3b82f6',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            data: [],
+            yAxisID: 'yMoisture',
+            tension: 0.35,
+            fill: true,
+            borderWidth: 2
+          },
+          {
+            label: 'Temperature (°C)',
+            borderColor: '#f59e0b',
+            data: [],
+            yAxisID: 'yTemp',
+            tension: 0.35,
+            borderWidth: 2
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+            ticks: { color: '#94a3b8', font: { size: 10 } }
+          },
+          yMoisture: {
+            type: 'linear',
+            position: 'left',
+            min: 0,
+            max: 100,
+            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+            ticks: { color: '#3b82f6' }
+          },
+          yTemp: {
+            type: 'linear',
+            position: 'right',
+            min: 15,
+            max: 45,
+            grid: { drawOnChartArea: false },
+            ticks: { color: '#f59e0b' }
+          }
+        },
+        plugins: {
+          legend: { labels: { color: '#cbd5e1' } }
+        }
+      }
+    });
+
+    // -------------------------------------------------------------
+    // 3. UI Update Helpers
+    // -------------------------------------------------------------
+    function updateDashboardUI(row) {
+      document.getElementById('last-update').innerText = new Date(row.created_at).toLocaleTimeString();
+
+      // Moisture
+      document.getElementById('card-moisture').innerText = `${Math.round(row.moisture_pct)}%`;
+      document.getElementById('card-raw-adc').innerText = `Raw ADC: ${row.raw_adc}`;
+      document.getElementById('moisture-bar').style.width = `${Math.min(100, Math.max(0, row.moisture_pct))}%`;
+
+      // Temperature
+      document.getElementById('card-temp').innerText = `${row.temperature_c.toFixed(1)} °C`;
+      document.getElementById('temp-bar').style.width = `${Math.min(100, (row.temperature_c / 50) * 100)}%`;
+
+      // Pump Status
+      const pumpEl = document.getElementById('card-pump');
+      const pumpIcon = document.getElementById('pump-icon-container');
+      const triggerEl = document.getElementById('card-trigger');
+
+      triggerEl.innerText = row.trigger_type || 'PERIODIC';
+
+      if (row.pump_state) {
+        pumpEl.innerText = 'PUMP ACTIVE';
+        pumpEl.className = 'text-3xl font-extrabold text-emerald-400 mt-2';
+        pumpIcon.className = 'p-3 bg-emerald-500/20 text-emerald-400 rounded-xl ring-2 ring-emerald-500/50';
+      } else {
+        pumpEl.innerText = 'STANDBY';
+        pumpEl.className = 'text-3xl font-extrabold text-slate-400 mt-2';
+        pumpIcon.className = 'p-3 bg-slate-800 text-slate-400 rounded-xl';
+      }
+
+      // AI Decision
+      document.getElementById('card-ai-decision').innerText = row.ai_decision;
+      document.getElementById('card-confidence').innerText = `Confidence: ${(row.ai_confidence * 100).toFixed(0)}%`;
+      document.getElementById('confidence-bar').style.width = `${(row.ai_confidence * 100)}%`;
+
+      // Push into feed
+      appendFeedItem(row);
+    }
+
+    function appendFeedItem(row) {
+      const feed = document.getElementById('event-feed');
+      const timeStr = new Date(row.created_at).toLocaleTimeString();
+      const isPumpOn = row.pump_state;
+      
+      const item = document.createElement('div');
+      item.className = "flex items-center justify-between p-2.5 rounded-xl bg-slate-800/50 border border-slate-800 text-xs";
+      item.innerHTML = `
+        <div class="flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full ${isPumpOn ? 'bg-emerald-400' : 'bg-slate-500'}"></span>
+          <span class="font-medium text-slate-200">${row.ai_decision}</span>
+          <span class="text-slate-500 font-mono text-[10px]">(${row.trigger_type || 'PERIODIC'})</span>
+        </div>
+        <div class="text-slate-400 font-mono">${timeStr}</div>
+      `;
+      feed.insertBefore(item, feed.firstChild);
+
+      // Keep only last 10 entries in feed
+      if (feed.children.length > 10) {
+        feed.removeChild(feed.lastChild);
+      }
+    }
+
+    // -------------------------------------------------------------
+    // 4. Data Fetching & Realtime Subscription
+    // -------------------------------------------------------------
+    async function loadInitialData() {
+      const { data, error } = await supabaseClient
+        .from('sensor_telemetry')
+        .select('*')
+        .order('id', { ascending: false })
+        .limit(20);
+
+      if (error) {
+        console.error("Supabase fetch error:", error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        const sorted = data.reverse();
+        sorted.forEach(row => {
+          telemetryChart.data.labels.push(new Date(row.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}));
+          telemetryChart.data.datasets[0].data.push(row.moisture_pct);
+          telemetryChart.data.datasets[1].data.push(row.temperature_c);
+          appendFeedItem(row);
+        });
+        telemetryChart.update();
+        updateDashboardUI(sorted[sorted.length - 1]);
+      }
+    }
+
+    // Listen for live rows coming from the ESP32
+    supabaseClient
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'sensor_telemetry' },
+        (payload) => {
+          const newRow = payload.new;
+          updateDashboardUI(newRow);
+
+          // Update chart
+          telemetryChart.data.labels.push(new Date(newRow.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}));
+          telemetryChart.data.datasets[0].data.push(newRow.moisture_pct);
+          telemetryChart.data.datasets[1].data.push(newRow.temperature_c);
+
+          if (telemetryChart.data.labels.length > 20) {
+            telemetryChart.data.labels.shift();
+            telemetryChart.data.datasets[0].data.shift();
+            telemetryChart.data.datasets[1].data.shift();
+          }
+          telemetryChart.update();
+        }
+      )
+      .subscribe();
+
+    // Init
+    loadInitialData();
+    lucide.createIcons();
+  </script>
+</body>
+</html>
