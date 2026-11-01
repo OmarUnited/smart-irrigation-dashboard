@@ -146,7 +146,7 @@
           <h3 class="font-bold text-slate-100 text-lg mb-1">Live Event Feed</h3>
           <p class="text-xs text-slate-400 mb-4">Chronological trigger records</p>
           <div id="event-feed" class="space-y-3 max-h-64 overflow-y-auto pr-1">
-            <!-- Events injected dynamically -->
+            <!-- Dynamically populated -->
           </div>
         </div>
 
@@ -165,13 +165,13 @@
     // 1. Supabase Initialization
     // -------------------------------------------------------------
     const SUPABASE_URL = "https://znophlwtwpntupvurbtz.supabase.co";
-    // Replace with your actual anon public key
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpub3BobHd0d3BudHVwdnVyYnR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzODUzNzAsImV4cCI6MjEwODk2MTM3MH0.chTlj53KGcZIGdIrM7l62bsySdpDvPcPeA9ACChTnqk";
+    // Collez votre clé publique anon Supabase ci-dessous
+    const SUPABASE_ANON_KEY = "PASTE_YOUR_SUPABASE_ANON_KEY_HERE";
 
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // -------------------------------------------------------------
-    // 2. Chart.js Setup
+    // 2. Configuration Chart.js
     // -------------------------------------------------------------
     const ctx = document.getElementById('telemetryChart').getContext('2d');
     const telemetryChart = new Chart(ctx, {
@@ -231,21 +231,18 @@
     });
 
     // -------------------------------------------------------------
-    // 3. UI Update Helpers
+    // 3. Helpers d'Interface
     // -------------------------------------------------------------
     function updateDashboardUI(row) {
       document.getElementById('last-update').innerText = new Date(row.created_at).toLocaleTimeString();
 
-      // Moisture
       document.getElementById('card-moisture').innerText = `${Math.round(row.moisture_pct)}%`;
       document.getElementById('card-raw-adc').innerText = `Raw ADC: ${row.raw_adc}`;
       document.getElementById('moisture-bar').style.width = `${Math.min(100, Math.max(0, row.moisture_pct))}%`;
 
-      // Temperature
       document.getElementById('card-temp').innerText = `${row.temperature_c.toFixed(1)} °C`;
       document.getElementById('temp-bar').style.width = `${Math.min(100, (row.temperature_c / 50) * 100)}%`;
 
-      // Pump Status
       const pumpEl = document.getElementById('card-pump');
       const pumpIcon = document.getElementById('pump-icon-container');
       const triggerEl = document.getElementById('card-trigger');
@@ -262,12 +259,10 @@
         pumpIcon.className = 'p-3 bg-slate-800 text-slate-400 rounded-xl';
       }
 
-      // AI Decision
       document.getElementById('card-ai-decision').innerText = row.ai_decision;
       document.getElementById('card-confidence').innerText = `Confidence: ${(row.ai_confidence * 100).toFixed(0)}%`;
       document.getElementById('confidence-bar').style.width = `${(row.ai_confidence * 100)}%`;
 
-      // Push into feed
       appendFeedItem(row);
     }
 
@@ -288,16 +283,15 @@
       `;
       feed.insertBefore(item, feed.firstChild);
 
-      // Keep only last 10 entries in feed
       if (feed.children.length > 10) {
         feed.removeChild(feed.lastChild);
       }
     }
 
     // -------------------------------------------------------------
-    // 4. Data Fetching & Realtime Subscription
+    // 4. Chargement & Synchronisation Temps Réel
     // -------------------------------------------------------------
-async function loadInitialData() {
+    async function loadInitialData() {
       const { data, error } = await supabaseClient
         .from('sensor_telemetry')
         .select('*')
@@ -305,14 +299,13 @@ async function loadInitialData() {
         .limit(20);
 
       if (error) {
-        console.error("Supabase fetch error:", error);
+        console.error("Erreur de requête Supabase:", error);
         return;
       }
 
       if (data && data.length > 0) {
         const sorted = data.reverse();
         
-        // Reset chart and event list to prevent duplicate stacking
         telemetryChart.data.labels = [];
         telemetryChart.data.datasets[0].data = [];
         telemetryChart.data.datasets[1].data = [];
@@ -330,7 +323,7 @@ async function loadInitialData() {
       }
     }
 
-    // Listen for live rows coming from the ESP32
+    // Écouteur WebSocket Supabase (Mise à jour immédiate)
     supabaseClient
       .channel('schema-db-changes')
       .on(
@@ -340,7 +333,6 @@ async function loadInitialData() {
           const newRow = payload.new;
           updateDashboardUI(newRow);
 
-          // Update chart
           telemetryChart.data.labels.push(new Date(newRow.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}));
           telemetryChart.data.datasets[0].data.push(newRow.moisture_pct);
           telemetryChart.data.datasets[1].data.push(newRow.temperature_c);
@@ -355,9 +347,14 @@ async function loadInitialData() {
       )
       .subscribe();
 
-    // Init
+    // Initialisation
     loadInitialData();
     lucide.createIcons();
+
+    // Auto-rafraîchissement toutes les 29 secondes
+    setInterval(() => {
+      loadInitialData();
+    }, 29000);
   </script>
 </body>
 </html>
