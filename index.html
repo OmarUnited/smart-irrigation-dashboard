@@ -297,7 +297,7 @@
     // -------------------------------------------------------------
     // 4. Data Fetching & Realtime Subscription
     // -------------------------------------------------------------
-    async function loadInitialData() {
+async function loadInitialData() {
       const { data, error } = await supabaseClient
         .from('sensor_telemetry')
         .select('*')
@@ -311,12 +311,20 @@
 
       if (data && data.length > 0) {
         const sorted = data.reverse();
+        
+        // Reset chart and event list to prevent duplicate stacking
+        telemetryChart.data.labels = [];
+        telemetryChart.data.datasets[0].data = [];
+        telemetryChart.data.datasets[1].data = [];
+        document.getElementById('event-feed').innerHTML = '';
+
         sorted.forEach(row => {
           telemetryChart.data.labels.push(new Date(row.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}));
           telemetryChart.data.datasets[0].data.push(row.moisture_pct);
           telemetryChart.data.datasets[1].data.push(row.temperature_c);
           appendFeedItem(row);
         });
+
         telemetryChart.update();
         updateDashboardUI(sorted[sorted.length - 1]);
       }
