@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" type="image/x-icon" href="leaf.png">
   <title>Smart Farm AI • Mission Control</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -35,8 +34,8 @@
         </div>
         <div>
           <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-            Smart Farm AI 
-            <span class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full">v1.2 Live</span>
+            Smart Farm AI
+            <span class="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full">v1.3 Pro</span>
           </h1>
           <p class="text-xs text-slate-400">Autonomous Micro-Irrigation & Telemetry Station</p>
         </div>
@@ -57,38 +56,46 @@
     <!-- Key Metrics Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       
-      <!-- Soil Moisture -->
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+      <!-- Soil Moisture (Clickable for Popup Graph) -->
+      <div onclick="openMetricModal('moisture')" class="bg-slate-900 border border-slate-800 hover:border-blue-500/60 rounded-2xl p-5 shadow-lg relative overflow-hidden cursor-pointer transition-all hover:scale-[1.015] group">
         <div class="flex justify-between items-start">
           <div>
-            <p class="text-xs font-semibold uppercase text-slate-400">Soil Moisture</p>
+            <div class="flex items-center gap-1.5">
+              <p class="text-xs font-semibold uppercase text-slate-400">Soil Moisture</p>
+              <i data-lucide="external-link" class="w-3 h-3 text-slate-500 group-hover:text-blue-400 transition-colors"></i>
+            </div>
             <h3 id="card-moisture" class="text-3xl font-extrabold text-white mt-2">-- %</h3>
             <p id="card-raw-adc" class="text-xs text-slate-500 mt-1">Raw ADC: ----</p>
           </div>
-          <div class="p-3 bg-blue-500/10 text-blue-400 rounded-xl">
+          <div class="p-3 bg-blue-500/10 text-blue-400 group-hover:bg-blue-500/20 rounded-xl transition-colors">
             <i data-lucide="droplets" class="w-6 h-6"></i>
           </div>
         </div>
         <div class="w-full bg-slate-800 h-2 rounded-full mt-4 overflow-hidden">
           <div id="moisture-bar" class="bg-blue-500 h-full transition-all duration-500" style="width: 0%"></div>
         </div>
+        <div class="text-[10px] text-slate-500 group-hover:text-blue-400/80 mt-2 text-right transition-colors font-medium">Click to expand chart ↗</div>
       </div>
 
-      <!-- Soil / Water Temperature -->
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg">
+      <!-- Soil / Water Temperature (Clickable for Popup Graph) -->
+      <div onclick="openMetricModal('temperature')" class="bg-slate-900 border border-slate-800 hover:border-amber-500/60 rounded-2xl p-5 shadow-lg relative overflow-hidden cursor-pointer transition-all hover:scale-[1.015] group">
         <div class="flex justify-between items-start">
           <div>
-            <p class="text-xs font-semibold uppercase text-slate-400">Temperature</p>
+            <div class="flex items-center gap-1.5">
+              <p class="text-xs font-semibold uppercase text-slate-400">Temperature</p>
+              <i data-lucide="external-link" class="w-3 h-3 text-slate-500 group-hover:text-amber-400 transition-colors"></i>
+            </div>
             <h3 id="card-temp" class="text-3xl font-extrabold text-white mt-2">--.- °C</h3>
             <p id="card-temp-status" class="text-xs text-emerald-400 mt-1">Normal Evaporative State</p>
           </div>
-          <div class="p-3 bg-amber-500/10 text-amber-400 rounded-xl">
+          <div class="p-3 bg-amber-500/10 text-amber-400 group-hover:bg-amber-500/20 rounded-xl transition-colors">
             <i data-lucide="thermometer" class="w-6 h-6"></i>
           </div>
         </div>
         <div class="w-full bg-slate-800 h-2 rounded-full mt-4 overflow-hidden">
           <div id="temp-bar" class="bg-amber-500 h-full transition-all duration-500" style="width: 0%"></div>
         </div>
+        <div class="text-[10px] text-slate-500 group-hover:text-amber-400/80 mt-2 text-right transition-colors font-medium">Click to expand chart ↗</div>
       </div>
 
       <!-- Pump Status HUD -->
@@ -127,17 +134,32 @@
     <!-- Charts & Activity Feed -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-      <!-- Realtime Chart -->
-      <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg">
-        <div class="flex justify-between items-center mb-4">
-          <div>
-            <h3 class="font-bold text-slate-100 text-lg">Dynamic Environmental Telemetry</h3>
-            <p class="text-xs text-slate-400">Real-time soil moisture and thermal dynamics history</p>
+      <!-- Realtime / Historic Chart with Scale Filter -->
+      <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg flex flex-col justify-between">
+        <div>
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <div>
+              <h3 class="font-bold text-slate-100 text-lg">Dynamic Environmental Telemetry</h3>
+              <p id="chart-subtitle" class="text-xs text-slate-400">Live streaming soil moisture and thermal dynamics</p>
+            </div>
+
+            <!-- Time Range Selector Buttons -->
+            <div class="inline-flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-medium self-start sm:self-auto overflow-x-auto max-w-full">
+              <button onclick="changeTimeRange('live')" id="btn-live" class="range-btn px-2.5 py-1 rounded-lg bg-blue-600 text-white font-semibold transition-all">Live</button>
+              <button onclick="changeTimeRange('day')" id="btn-day" class="range-btn px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition-all">Day</button>
+              <button onclick="changeTimeRange('month')" id="btn-month" class="range-btn px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition-all">Month</button>
+              <button onclick="changeTimeRange('3months')" id="btn-3months" class="range-btn px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition-all">3M</button>
+              <button onclick="changeTimeRange('year')" id="btn-year" class="range-btn px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition-all">Year</button>
+              <button onclick="changeTimeRange('all')" id="btn-all" class="range-btn px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition-all">All</button>
+            </div>
           </div>
-          <span class="text-xs bg-slate-800 text-slate-300 px-3 py-1 rounded-lg">Last 20 Samples</span>
-        </div>
-        <div class="h-72 w-full">
-          <canvas id="telemetryChart"></canvas>
+
+          <div class="h-72 w-full relative">
+            <canvas id="telemetryChart"></canvas>
+            <div id="chart-loader" class="hidden absolute inset-0 bg-slate-900/60 backdrop-blur-[2px] flex items-center justify-center text-xs text-blue-400 font-medium">
+              Loading historical records...
+            </div>
+          </div>
         </div>
       </div>
 
@@ -161,6 +183,49 @@
 
   </div>
 
+  <!-- Mini Popup Modal for Single-Metric Detailed Graphs -->
+  <div id="metricModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm transition-opacity">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl max-w-3xl w-full relative animate-in fade-in zoom-in-95 duration-200">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between pb-4 border-b border-slate-800">
+        <div class="flex items-center gap-3">
+          <div id="modal-icon-container" class="p-2.5 rounded-xl">
+            <!-- Dynamic Icon -->
+          </div>
+          <div>
+            <h3 id="modal-title" class="text-xl font-bold text-white">Metric Overview</h3>
+            <p id="modal-subtitle" class="text-xs text-slate-400">Detailed historical distribution</p>
+          </div>
+        </div>
+        <button onclick="closeMetricModal()" class="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors">
+          <i data-lucide="x" class="w-6 h-6"></i>
+        </button>
+      </div>
+
+      <!-- Modal Current Metric Highlight -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 my-4">
+        <div class="bg-slate-950 border border-slate-800/80 p-3 rounded-xl">
+          <span class="text-[10px] uppercase font-bold text-slate-400">Current Value</span>
+          <div id="modal-current-val" class="text-2xl font-extrabold text-white mt-1">--</div>
+        </div>
+        <div class="bg-slate-950 border border-slate-800/80 p-3 rounded-xl">
+          <span class="text-[10px] uppercase font-bold text-slate-400">Window Peak (Max)</span>
+          <div id="modal-max-val" class="text-2xl font-extrabold text-white mt-1">--</div>
+        </div>
+        <div class="bg-slate-950 border border-slate-800/80 p-3 rounded-xl col-span-2 sm:col-span-1">
+          <span class="text-[10px] uppercase font-bold text-slate-400">Window Floor (Min)</span>
+          <div id="modal-min-val" class="text-2xl font-extrabold text-white mt-1">--</div>
+        </div>
+      </div>
+
+      <!-- Modal Canvas -->
+      <div class="h-72 w-full mt-2">
+        <canvas id="modalChart"></canvas>
+      </div>
+    </div>
+  </div>
+
   <script>
     // -------------------------------------------------------------
     // 1. Supabase Initialization
@@ -171,8 +236,13 @@
 
     const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    let activeRange = 'live';
+    let cachedRows = []; // Keep cached historical data for modal inspection
+    let modalChartInstance = null;
+    let activeModalMetric = null;
+
     // -------------------------------------------------------------
-    // 2. Configuration Chart.js
+    // 2. Main Chart.js Setup
     // -------------------------------------------------------------
     const ctx = document.getElementById('telemetryChart').getContext('2d');
     const telemetryChart = new Chart(ctx, {
@@ -183,12 +253,13 @@
           {
             label: 'Moisture (%)',
             borderColor: '#3b82f6',
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            backgroundColor: 'rgba(59, 130, 246, 0.12)',
             data: [],
             yAxisID: 'yMoisture',
             tension: 0.35,
             fill: true,
-            borderWidth: 2
+            borderWidth: 2,
+            pointRadius: 2.5
           },
           {
             label: 'Temperature (°C)',
@@ -196,7 +267,8 @@
             data: [],
             yAxisID: 'yTemp',
             tension: 0.35,
-            borderWidth: 2
+            borderWidth: 2,
+            pointRadius: 2.5
           }
         ]
       },
@@ -205,15 +277,15 @@
         maintainAspectRatio: false,
         scales: {
           x: {
-            grid: { color: 'rgba(255, 255, 255, 0.05)' },
-            ticks: { color: '#94a3b8', font: { size: 10 } }
+            grid: { color: 'rgba(255, 255, 255, 0.04)' },
+            ticks: { color: '#94a3b8', font: { size: 10 }, maxRotation: 45 }
           },
           yMoisture: {
             type: 'linear',
             position: 'left',
             min: 0,
             max: 100,
-            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+            grid: { color: 'rgba(255, 255, 255, 0.04)' },
             ticks: { color: '#3b82f6' }
           },
           yTemp: {
@@ -232,18 +304,21 @@
     });
 
     // -------------------------------------------------------------
-    // 3. Helpers d'Interface
+    // 3. UI Update Helpers
     // -------------------------------------------------------------
     function updateDashboardUI(row) {
       document.getElementById('last-update').innerText = new Date(row.created_at).toLocaleTimeString();
 
+      // Moisture
       document.getElementById('card-moisture').innerText = `${Math.round(row.moisture_pct)}%`;
       document.getElementById('card-raw-adc').innerText = `Raw ADC: ${row.raw_adc}`;
       document.getElementById('moisture-bar').style.width = `${Math.min(100, Math.max(0, row.moisture_pct))}%`;
 
+      // Temperature
       document.getElementById('card-temp').innerText = `${row.temperature_c.toFixed(1)} °C`;
       document.getElementById('temp-bar').style.width = `${Math.min(100, (row.temperature_c / 50) * 100)}%`;
 
+      // Pump Status
       const pumpEl = document.getElementById('card-pump');
       const pumpIcon = document.getElementById('pump-icon-container');
       const triggerEl = document.getElementById('card-trigger');
@@ -260,6 +335,7 @@
         pumpIcon.className = 'p-3 bg-slate-800 text-slate-400 rounded-xl';
       }
 
+      // AI Decision
       document.getElementById('card-ai-decision').innerText = row.ai_decision;
       document.getElementById('card-confidence').innerText = `Confidence: ${(row.ai_confidence * 100).toFixed(0)}%`;
       document.getElementById('confidence-bar').style.width = `${(row.ai_confidence * 100)}%`;
@@ -290,41 +366,210 @@
     }
 
     // -------------------------------------------------------------
-    // 4. Chargement & Synchronisation Temps Réel
+    // 4. Data Querying with Dynamic Time Scales
     // -------------------------------------------------------------
-    async function loadInitialData() {
-      const { data, error } = await supabaseClient
-        .from('sensor_telemetry')
-        .select('*')
-        .order('id', { ascending: false })
-        .limit(20);
+    function formatTimeLabel(dateObj, range) {
+      if (range === 'live' || range === 'day') {
+        return dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      }
+      if (range === 'month' || range === '3months') {
+        return dateObj.toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+      }
+      return dateObj.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+
+    async function fetchTelemetryData(range = 'live') {
+      const loader = document.getElementById('chart-loader');
+      loader.classList.remove('hidden');
+
+      let query = supabaseClient.from('sensor_telemetry').select('*');
+      const now = new Date();
+
+      if (range === 'live') {
+        query = query.order('id', { ascending: false }).limit(25);
+      } else if (range === 'day') {
+        const pastDay = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+        query = query.gte('created_at', pastDay).order('id', { ascending: false }).limit(200);
+      } else if (range === 'month') {
+        const pastMonth = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        query = query.gte('created_at', pastMonth).order('id', { ascending: false }).limit(300);
+      } else if (range === '3months') {
+        const past3M = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
+        query = query.gte('created_at', past3M).order('id', { ascending: false }).limit(400);
+      } else if (range === 'year') {
+        const pastYear = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000).toISOString();
+        query = query.gte('created_at', pastYear).order('id', { ascending: false }).limit(500);
+      } else if (range === 'all') {
+        query = query.order('id', { ascending: false }).limit(600);
+      }
+
+      const { data, error } = await query;
+      loader.classList.add('hidden');
 
       if (error) {
-        console.error("Erreur de requête Supabase:", error);
+        console.error("Supabase Query Error:", error);
         return;
       }
 
       if (data && data.length > 0) {
-        const sorted = data.reverse();
-        
+        cachedRows = data;
+        const sorted = [...data].reverse();
+
         telemetryChart.data.labels = [];
         telemetryChart.data.datasets[0].data = [];
         telemetryChart.data.datasets[1].data = [];
-        document.getElementById('event-feed').innerHTML = '';
 
         sorted.forEach(row => {
-          telemetryChart.data.labels.push(new Date(row.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}));
+          const d = new Date(row.created_at);
+          telemetryChart.data.labels.push(formatTimeLabel(d, range));
           telemetryChart.data.datasets[0].data.push(row.moisture_pct);
           telemetryChart.data.datasets[1].data.push(row.temperature_c);
-          appendFeedItem(row);
         });
 
         telemetryChart.update();
         updateDashboardUI(sorted[sorted.length - 1]);
+
+        // If modal is currently open, refresh its data too
+        if (activeModalMetric) {
+          renderModalChart(activeModalMetric);
+        }
       }
     }
 
-    // Écouteur WebSocket Supabase (Mise à jour immédiate)
+    function changeTimeRange(range) {
+      activeRange = range;
+
+      // Update button styling
+      document.querySelectorAll('.range-btn').forEach(btn => {
+        btn.className = "range-btn px-2.5 py-1 rounded-lg text-slate-400 hover:text-white transition-all";
+      });
+      const activeBtn = document.getElementById(`btn-${range}`);
+      if (activeBtn) {
+        activeBtn.className = "range-btn px-2.5 py-1 rounded-lg bg-blue-600 text-white font-semibold shadow-md transition-all";
+      }
+
+      const subtitleMap = {
+        'live': 'Live streaming soil moisture and thermal dynamics',
+        'day': 'Telemetry dynamics over the past 24 hours',
+        'month': 'Aggregated trends for the last 30 days',
+        '3months': 'Quarterly agronomic data history (90 days)',
+        'year': 'Annual soil hydration and ambient temperature view',
+        'all': 'Comprehensive full lifetime telemetry records'
+      };
+      document.getElementById('chart-subtitle').innerText = subtitleMap[range] || 'Environmental History';
+
+      fetchTelemetryData(range);
+    }
+
+    // -------------------------------------------------------------
+    // 5. Mini Popup Window Logic (Modal Chart)
+    // -------------------------------------------------------------
+    function openMetricModal(metric) {
+      activeModalMetric = metric;
+      const modal = document.getElementById('metricModal');
+      const title = document.getElementById('modal-title');
+      const subtitle = document.getElementById('modal-subtitle');
+      const iconContainer = document.getElementById('modal-icon-container');
+
+      if (metric === 'moisture') {
+        title.innerText = "Soil Moisture Telemetry";
+        subtitle.innerText = "Capacitive sensor hydration saturation levels (%)";
+        iconContainer.className = "p-2.5 rounded-xl bg-blue-500/10 text-blue-400";
+        iconContainer.innerHTML = '<i data-lucide="droplets" class="w-6 h-6"></i>';
+      } else {
+        title.innerText = "Temperature Telemetry";
+        subtitle.innerText = "DS18B20 ambient/substrate thermal readings (°C)";
+        iconContainer.className = "p-2.5 rounded-xl bg-amber-500/10 text-amber-400";
+        iconContainer.innerHTML = '<i data-lucide="thermometer" class="w-6 h-6"></i>';
+      }
+
+      lucide.createIcons();
+      renderModalChart(metric);
+      modal.classList.remove('hidden');
+    }
+
+    function closeMetricModal() {
+      const modal = document.getElementById('metricModal');
+      modal.classList.add('hidden');
+      activeModalMetric = null;
+      if (modalChartInstance) {
+        modalChartInstance.destroy();
+        modalChartInstance = null;
+      }
+    }
+
+    // Close modal when pressing Escape or clicking backdrop
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeMetricModal();
+    });
+    document.getElementById('metricModal').addEventListener('click', (e) => {
+      if (e.target.id === 'metricModal') closeMetricModal();
+    });
+
+    function renderModalChart(metric) {
+      if (!cachedRows || cachedRows.length === 0) return;
+
+      const sorted = [...cachedRows].reverse();
+      const labels = sorted.map(r => formatTimeLabel(new Date(r.created_at), activeRange));
+      const values = sorted.map(r => metric === 'moisture' ? r.moisture_pct : r.temperature_c);
+
+      const maxVal = Math.max(...values);
+      const minVal = Math.min(...values);
+      const currentVal = values[values.length - 1];
+
+      document.getElementById('modal-current-val').innerText = metric === 'moisture' ? `${Math.round(currentVal)}%` : `${currentVal.toFixed(1)} °C`;
+      document.getElementById('modal-max-val').innerText = metric === 'moisture' ? `${Math.round(maxVal)}%` : `${maxVal.toFixed(1)} °C`;
+      document.getElementById('modal-min-val').innerText = metric === 'moisture' ? `${Math.round(minVal)}%` : `${minVal.toFixed(1)} °C`;
+
+      const isMoisture = metric === 'moisture';
+      const color = isMoisture ? '#3b82f6' : '#f59e0b';
+      const bgColor = isMoisture ? 'rgba(59, 130, 246, 0.18)' : 'rgba(245, 158, 11, 0.18)';
+
+      if (modalChartInstance) {
+        modalChartInstance.destroy();
+      }
+
+      const mCtx = document.getElementById('modalChart').getContext('2d');
+      modalChartInstance = new Chart(mCtx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: isMoisture ? 'Soil Moisture (%)' : 'Temperature (°C)',
+            data: values,
+            borderColor: color,
+            backgroundColor: bgColor,
+            fill: true,
+            tension: 0.35,
+            borderWidth: 2.5,
+            pointRadius: values.length > 50 ? 0 : 3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: { color: '#94a3b8', font: { size: 10 } }
+            },
+            y: {
+              min: isMoisture ? 0 : 10,
+              max: isMoisture ? 100 : 50,
+              grid: { color: 'rgba(255, 255, 255, 0.05)' },
+              ticks: { color: color }
+            }
+          },
+          plugins: {
+            legend: { labels: { color: '#f8fafc' } }
+          }
+        }
+      });
+    }
+
+    // -------------------------------------------------------------
+    // 6. Supabase Realtime Listener & Periodic Sync
+    // -------------------------------------------------------------
     supabaseClient
       .channel('schema-db-changes')
       .on(
@@ -334,27 +579,38 @@
           const newRow = payload.new;
           updateDashboardUI(newRow);
 
-          telemetryChart.data.labels.push(new Date(newRow.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}));
-          telemetryChart.data.datasets[0].data.push(newRow.moisture_pct);
-          telemetryChart.data.datasets[1].data.push(newRow.temperature_c);
+          // In live mode, push new point directly to the main graph
+          if (activeRange === 'live') {
+            const timeLabel = formatTimeLabel(new Date(newRow.created_at), 'live');
+            telemetryChart.data.labels.push(timeLabel);
+            telemetryChart.data.datasets[0].data.push(newRow.moisture_pct);
+            telemetryChart.data.datasets[1].data.push(newRow.temperature_c);
 
-          if (telemetryChart.data.labels.length > 20) {
-            telemetryChart.data.labels.shift();
-            telemetryChart.data.datasets[0].data.shift();
-            telemetryChart.data.datasets[1].data.shift();
+            if (telemetryChart.data.labels.length > 30) {
+              telemetryChart.data.labels.shift();
+              telemetryChart.data.datasets[0].data.shift();
+              telemetryChart.data.datasets[1].data.shift();
+            }
+            telemetryChart.update();
           }
-          telemetryChart.update();
+
+          // If the mini modal is currently open, dynamically update it too
+          if (activeModalMetric) {
+            cachedRows.unshift(newRow);
+            renderModalChart(activeModalMetric);
+          }
         }
       )
       .subscribe();
 
-    // Initialisation
-    loadInitialData();
-    lucide.createIcons();
-// Auto-fetch fresh data every 1 second (matching your new ESP32 speed)
+    // Auto-refresh data every 29 seconds
     setInterval(() => {
-      loadInitialData();
-    }, 1000); // Set to 29000 if you prefer 29 seconds
+      fetchTelemetryData(activeRange);
+    }, 29000);
+
+    // Initial Load
+    fetchTelemetryData('live');
+    lucide.createIcons();
   </script>
 </body>
 </html>
