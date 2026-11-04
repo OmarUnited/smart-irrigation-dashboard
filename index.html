@@ -351,11 +351,10 @@
     // Initialisation
     loadInitialData();
     lucide.createIcons();
-
-    // Auto-rafraîchissement toutes les 29 secondes
+// Auto-fetch fresh data every 1 second (matching your new ESP32 speed)
     setInterval(() => {
       loadInitialData();
-    }, 29000);
+    }, 1000); // Set to 29000 if you prefer 29 seconds
   </script>
 </body>
 </html>
